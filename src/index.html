@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logo Collector Snake Game</title>
+    <title>FY25-KO (Snake)</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -38,8 +38,8 @@
     <script>
         const config = {
             type: Phaser.AUTO,
-            width: 600,
-            height: 800,
+            width: 400,
+            height: 600,
             parent: 'game-container',
             scene: {
                 preload: preload,
@@ -69,6 +69,8 @@
         let restartText;
         let gridSize = 16;
         let foodSize = 32;
+        let isLeftDown = false;
+        let isRightDown = false;
         let gridWidth = config.width / gridSize;
         let gridHeight = config.height / gridSize;
         let foodGridWidth = config.width / foodSize;
@@ -140,12 +142,48 @@
 
             this.starfieldEmitter.start();
 
+            this.leftButton = this.add.rectangle(0, 0, config.width / 2, config.height, 0xff00ff, 0.05).setOrigin(0).setInteractive();
+            this.rightButton = this.add.rectangle(config.width / 2, 0, config.width / 2, config.height, 0xff00ff, 0.05).setOrigin(0).setInteractive();
+
             snake = new Snake(this, 400, 300);
 
             food = this.physics.add.group();
             badFood = this.physics.add.group();
 
             cursors = this.input.keyboard.createCursorKeys();
+
+            isLeftDown = false;
+            isRightDown = false;
+
+            this.leftButton.on('pointerdown', () => {
+                isLeftDown = true;
+            });
+            this.rightButton.on('pointerdown', () => {
+                isRightDown = true;
+            });
+
+            this.leftButton.on('pointerup', () => {
+                isLeftDown = false;
+            });
+            this.rightButton.on('pointerup', () => {
+                isRightDown = false;
+            });
+
+            this.leftButton.on('pointerout', () => {
+                isLeftDown = false;
+            });
+            this.rightButton.on('pointerout', () => {
+                isRightDown = false;
+            });
+
+            this.input.keyboard.on('keydown-LEFT', () => {
+                isLeftDown = true;
+            });
+            this.input.keyboard.on('keydown-RIGHT',() => {
+                isRightDown = true;
+            });
+            // this.input.keyboard.on('keydown-UP', this.handleUpKey, this);
+            // this.input.keyboard.on('keydown-DOWN', this.handleDownKey, this);            
 
             const textStyle = { fontFamily: 'Poppins', fontSize: '24px', fill: '#fff' };
             scoreText = this.add.text(16, 16, 'Score: 0', textStyle);
@@ -285,15 +323,48 @@
             }
 
             update(cursors) {
-                if (cursors.left.isDown && this.direction.x <= 0) {
-                    this.nextDirection.set(-gridSize, 0);
-                } else if (cursors.right.isDown && this.direction.x >= 0) {
-                    this.nextDirection.set(gridSize, 0);
-                } else if (cursors.up.isDown && this.direction.y <= 0) {
+
+                // isLeftDown = cursors.left.isDown || isLeftDown;
+                // isRightDown = cursors.right.isDown || isRightDown;
+
+                if (isLeftDown && this.direction.x > 0) {
+                    // Moving Right => Moving Up
                     this.nextDirection.set(0, -gridSize);
-                } else if (cursors.down.isDown && this.direction.y >= 0) {
+                } else if (isLeftDown && this.direction.y < 0) {
+                    // Moving Up => Moving Left
+                    this.nextDirection.set(-gridSize, 0);
+                } else if (isLeftDown && this.direction.x < 0) {
+                    // Moving Left => Moving Down
                     this.nextDirection.set(0, gridSize);
+                } else if (isLeftDown && this.direction.y > 0) {
+                    // Moving Down => Moving Right
+                    this.nextDirection.set(gridSize, 0);
+                } else if (isRightDown && this.direction.x > 0) {
+                    // Moving Right => Moving Down
+                    this.nextDirection.set(0, gridSize);
+                } else if (isRightDown && this.direction.y < 0) {
+                    // Moving Up => Moving Right
+                    this.nextDirection.set(gridSize, 0);
+                } else if (isRightDown && this.direction.x < 0) {
+                    // Moving Left => Moving Up
+                    this.nextDirection.set(0, -gridSize);
+                } else if (isRightDown && this.direction.y > 0) {
+                    // Moving Down => Moving Left
+                    this.nextDirection.set(-gridSize, 0);
                 }
+
+                // if (cursors.left.isDown && this.direction.x <= 0) {
+                //     this.nextDirection.set(-gridSize, 0);
+                // } else if (cursors.right.isDown && this.direction.x >= 0) {
+                //     this.nextDirection.set(gridSize, 0);
+                // } else if (cursors.up.isDown && this.direction.y <= 0) {
+                //     this.nextDirection.set(0, -gridSize);
+                // } else if (cursors.down.isDown && this.direction.y >= 0) {
+                //     this.nextDirection.set(0, gridSize);
+                // }
+
+                isLeftDown = false;
+                isRightDown = false;
 
                 if (this.scene.time.now > this.moveTime) {
                     this.move();
