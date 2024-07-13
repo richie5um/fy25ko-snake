@@ -1,42 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logo Collector Snake Game</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
-<!-- Add Poppins font -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-<style>
-    body {
-        margin: 0;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background-color: #333;
-        font-family: 'Poppins', sans-serif;
-    }
-    #game-container {
-        border: 2px solid #fff;
-    }
-</style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #333;
+            font-family: 'Poppins', sans-serif;
+            background-color: #111111;
+            color: #cccccc;
+
+            background-image: url("assets/background.svg");
+            background-position: 50%;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        #game-container {
+            border: 1px solid #222;
+        }
+    </style>
 </head>
+
 <body>
     <div id="game-container"></div>
 
     <script>
         const config = {
             type: Phaser.AUTO,
-            width: 800,
-            height: 600,
+            width: 600,
+            height: 800,
             parent: 'game-container',
             scene: {
                 preload: preload,
                 create: create,
                 update: update
             },
+            transparent: true,
             physics: {
                 default: 'arcade',
                 arcade: {
@@ -52,17 +62,84 @@
         let badFood;
         let cursors;
         let score = 0;
+        let highScore = 0;
         let scoreText;
+        let highScoreText;
         let gameOverText;
         let restartText;
+        let gridSize = 16;
+        let foodSize = 32;
+        let gridWidth = config.width / gridSize;
+        let gridHeight = config.height / gridSize;
+        let foodGridWidth = config.width / foodSize;
+        let foodGridHeight = config.height / foodSize;
+
+        const goodLogoFiles = [
+            // 'logos/00ff00.png',
+            'logos/adobesign.png',
+            'logos/docusign.png',
+            'logos/gmail.png',
+            'logos/jira.png',
+            'logos/ms-outlook.png',
+            'logos/ms-sharepoint.png',
+            'logos/ms-teams.png',
+            'logos/salesforce.png',
+            'logos/slack.png',
+            'logos/webhook.png',
+        ];
+
+        const badLogoFiles = [
+            // 'logos/ff0000.png',
+            'logos/box.png',
+            'logos/coupa.png',
+            'logos/hubspot.png',
+            'logos/greenhouse.png',
+            'logos/oracle.png',
+            'logos/sap.png',
+            'logos/thunderbird.png',
+            'logos/ms-powerbi.png',
+            'logos/hibob.png',
+            'logos/infor.png',
+            'logos/appsense.png',
+            'logos/avecto.png',
+            'logos/beyondtrust.png',
+            'logos/dropbox.png',
+        ];
 
         function preload() {
-            this.load.image('goodLogo', 'assets/00ff00.png');
-            this.load.image('badLogo', 'assets/ff0000.png');
-            this.load.image('thread', 'assets/0000ff.png');
+            this.load.image('thread', 'logos/summize.png');
+            this.load.image('star', 'https://labs.phaser.io/assets/particles/white.png');
+
+            goodLogoFiles.forEach((file, index) => {
+                this.load.image(`goodLogo${index}`, file);
+            });
+
+            badLogoFiles.forEach((file, index) => {
+                this.load.image(`badLogo${index}`, file);
+            });
         }
 
         function create() {
+
+            highScore = localStorage.getItem('fy25ko-snake-hs') ?? 0;
+            if (btoa(highScore + window.location) !== localStorage.getItem('fy25ko-snake-hsc')) {
+                highScore = 0;
+            }
+
+            this.starfield = this.add.particles('star');
+            this.starfieldEmitter = this.starfield.createEmitter({
+                x: { min: 0, max: config.width },
+                y: 0,
+                lifespan: 3000,
+                speedY: { min: 100, max: 300 },
+                scale: { start: 0.01, end: 0.02 },
+                quantity: 2,
+                // blendMode: 'AND'
+                blendMode: 'LIGHTEN'
+            });
+
+            this.starfieldEmitter.start();
+
             snake = new Snake(this, 400, 300);
 
             food = this.physics.add.group();
@@ -70,22 +147,22 @@
 
             cursors = this.input.keyboard.createCursorKeys();
 
-            // Update text style to use Poppins
-            const textStyle = { fontFamily: 'Poppins', fontSize: '32px', fill: '#fff' };
+            const textStyle = { fontFamily: 'Poppins', fontSize: '24px', fill: '#fff' };
             scoreText = this.add.text(16, 16, 'Score: 0', textStyle);
+            highScoreText = this.add.text(16, 48, `High Score: ${highScore}`, textStyle);
 
-            gameOverText = this.add.text(400, 300, 'Game Over', { ...textStyle, fontSize: '64px' });
+            gameOverText = this.add.text(config.width / 2, 300, 'Game Over', { ...textStyle, fontSize: '64px' });
             gameOverText.setOrigin(0.5);
             gameOverText.visible = false;
 
-            restartText = this.add.text(400, 350, 'Tap to Restart', textStyle);
+            restartText = this.add.text(config.width / 2, 350, 'Tap to Restart', textStyle);
             restartText.setOrigin(0.5);
             restartText.visible = false;
 
             this.input.on('pointerdown', handleTouch, this);
 
-            spawnFood();
-            spawnBadFood();
+            spawnFood(this);
+            spawnBadFood(this);
         }
 
         function update() {
@@ -104,40 +181,79 @@
         function eatFood(head, food) {
             food.destroy();
             snake.grow();
+            snake.increaseSpeed();
             score += 10;
             scoreText.setText('Score: ' + score);
-            spawnFood();
-            spawnBadFood();
+            spawnFood(this);
+            spawnBadFood(this);
         }
 
         function eatBadFood(head, badFood) {
             gameOver();
         }
 
-        function spawnFood() {
-            const x = Phaser.Math.Between(50, 750);
-            const y = Phaser.Math.Between(50, 550);
-            food.create(x, y, 'goodLogo');
+        function spawnFood(scene) {
+            let x, y;
+            do {
+                x = Phaser.Math.Between(0, foodGridWidth - 1) * foodSize;
+                y = Phaser.Math.Between(0, foodGridHeight - 1) * foodSize;
+            } while (isPositionOccupied(x, y));
+
+            const randomIndex = Phaser.Math.Between(0, goodLogoFiles.length - 1);
+            createFoodWithMaxSize(scene, x, y, `goodLogo${randomIndex}`, food);
         }
 
-        function spawnBadFood() {
-            const x = Phaser.Math.Between(50, 750);
-            const y = Phaser.Math.Between(50, 550);
-            badFood.create(x, y, 'badLogo');
+        function spawnBadFood(scene) {
+            let x, y;
+            do {
+                x = Phaser.Math.Between(0, foodGridWidth - 1) * foodSize;
+                y = Phaser.Math.Between(0, foodGridHeight - 1) * foodSize;
+            } while (isPositionOccupied(x, y));
+
+            const randomIndex = Phaser.Math.Between(0, badLogoFiles.length - 1);
+            createFoodWithMaxSize(scene, x, y, `badLogo${randomIndex}`, badFood);
+        }
+
+        function createFoodWithMaxSize(scene, x, y, texture, group) {
+
+
+            const food = group.create(x + foodSize / 2, y + foodSize / 2, texture);
+            const scale = Math.min(foodSize / food.width, foodSize / food.height);
+            food.setScale(scale);
+            // food.setOrigin(0.5);
+
+            // Make the physics body larger
+            // const physicsSize = gridSize * 1.5; // 50% larger than the grid size
+            // food.body.setCircle(physicsSize / 2);
+            // food.body.setOffset(-physicsSize / 4, -physicsSize / 4);
+
+            group.add(food);
+        }
+
+        function isPositionOccupied(x, y) {
+            return (
+                snake.body.some(part => part.x === x && part.y === y) ||
+                food.getChildren().some(f => f.x === x + foodSize / 2 && f.y === y + foodSize / 2) ||
+                badFood.getChildren().some(f => f.x === x + foodSize / 2 && f.y === y + foodSize / 2)
+            );
         }
 
         function gameOver() {
             snake.alive = false;
             gameOverText.visible = true;
             restartText.visible = true;
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('fy25ko-snake-hs', highScore);
+                localStorage.setItem('fy25ko-snake-hsc', btoa(highScore + window.location));
+                highScoreText.setText(`High Score: ${highScore}`);
+            }
         }
 
         function handleTouch(pointer) {
             if (!snake.alive) {
                 restartGame();
-            } else {
-                const angle = Phaser.Math.Angle.Between(snake.head.x, snake.head.y, pointer.x, pointer.y);
-                snake.setDirection(angle);
             }
         }
 
@@ -149,8 +265,8 @@
             snake.reset(400, 300);
             food.clear(true, true);
             badFood.clear(true, true);
-            spawnFood();
-            spawnBadFood();
+            spawnFood(this.scene);
+            spawnBadFood(this.scene);
         }
 
         class Snake {
@@ -158,25 +274,25 @@
                 this.scene = scene;
                 this.body = [];
                 this.head = scene.physics.add.image(x, y, 'thread');
-                this.head.setDisplaySize(16, 16);
+                this.head.setDisplaySize(gridSize, gridSize);
+
                 this.body.push(this.head);
                 this.alive = true;
-                this.speed = 160;
-                this.moveTime = 0;
                 this.moveDelay = 100;
-                this.tailPosition = new Phaser.Geom.Point(x, y);
-                this.direction = new Phaser.Math.Vector2(1, 0);
+                this.moveTime = 0;
+                this.direction = new Phaser.Math.Vector2(gridSize, 0);
+                this.nextDirection = new Phaser.Math.Vector2(gridSize, 0);
             }
 
             update(cursors) {
-                if (cursors.left.isDown && this.direction.x !== 1) {
-                    this.direction.set(-1, 0);
-                } else if (cursors.right.isDown && this.direction.x !== -1) {
-                    this.direction.set(1, 0);
-                } else if (cursors.up.isDown && this.direction.y !== 1) {
-                    this.direction.set(0, -1);
-                } else if (cursors.down.isDown && this.direction.y !== -1) {
-                    this.direction.set(0, 1);
+                if (cursors.left.isDown && this.direction.x <= 0) {
+                    this.nextDirection.set(-gridSize, 0);
+                } else if (cursors.right.isDown && this.direction.x >= 0) {
+                    this.nextDirection.set(gridSize, 0);
+                } else if (cursors.up.isDown && this.direction.y <= 0) {
+                    this.nextDirection.set(0, -gridSize);
+                } else if (cursors.down.isDown && this.direction.y >= 0) {
+                    this.nextDirection.set(0, gridSize);
                 }
 
                 if (this.scene.time.now > this.moveTime) {
@@ -185,44 +301,41 @@
                 }
             }
 
-            setDirection(angle) {
-                this.direction.setToPolar(angle);
-                this.direction.normalize();
-            }
-
             move() {
-                let x = this.head.x + this.direction.x * 16;
-                let y = this.head.y + this.direction.y * 16;
-
-                if (x < 0) x = 800 - 16;
-                if (x >= 800) x = 0;
-                if (y < 0) y = 600 - 16;
-                if (y >= 600) y = 0;
-
-                this.tailPosition.setTo(this.body[this.body.length - 1].x, this.body[this.body.length - 1].y);
+                this.direction = this.nextDirection.clone();
+                let x = Phaser.Math.Wrap(this.head.x + this.direction.x, 0, config.width);
+                let y = Phaser.Math.Wrap(this.head.y + this.direction.y, 0, config.height);
 
                 for (let i = this.body.length - 1; i > 0; i--) {
                     this.body[i].x = this.body[i - 1].x;
                     this.body[i].y = this.body[i - 1].y;
                 }
 
-                this.head.x = x;
-                this.head.y = y;
+                this.head.setPosition(x, y);  // This updates both the image and physics body position
             }
 
             grow() {
-                const newPart = this.scene.add.image(this.tailPosition.x, this.tailPosition.y, 'thread');
-                newPart.setDisplaySize(16, 16);
+                const lastPart = this.body[this.body.length - 1];
+                const newPart = this.scene.physics.add.image(lastPart.x, lastPart.y, 'thread');
+                newPart.setDisplaySize(gridSize, gridSize);
                 this.body.push(newPart);
             }
 
-            hitSelf() {
-                return this.body.slice(1).some(part => 
-                    Phaser.Math.Within(part.x, this.head.x, 8) && 
-                    Phaser.Math.Within(part.y, this.head.y, 8)
-                );
+            increaseSpeed() {
+                this.moveDelay = Math.max(50, this.moveDelay - 2);
             }
 
+            hitSelf() {
+
+                //return false;
+                // this.scene.physics.overlap(snake.head, this.body, gameOver, null, this);
+
+                // const tail = this.body.slice(2);
+
+                return this.body.slice(2).some(part =>
+                    Phaser.Math.Distance.Between(part.x, part.y, this.head.x, this.head.y) < gridSize
+                );
+            }
             reset(x, y) {
                 this.body.forEach((part, index) => {
                     if (index > 0) part.destroy();
@@ -230,10 +343,12 @@
                 this.body = [this.head];
                 this.head.setPosition(x, y);
                 this.alive = true;
-                this.tailPosition.setTo(x, y);
-                this.direction.set(1, 0);
+                this.direction.set(gridSize, 0);
+                this.nextDirection.set(gridSize, 0);
+                this.moveDelay = 100;
             }
         }
     </script>
 </body>
+
 </html>
